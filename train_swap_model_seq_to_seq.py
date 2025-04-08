@@ -5,6 +5,8 @@ from transformers import (
     Trainer,
     TrainingArguments,
     DataCollatorForLanguageModeling,
+    AutoModelForSeq2SeqLM,
+    DataCollatorForSeq2Seq,
 )
 from huggingface_hub import login
 import os
@@ -42,21 +44,62 @@ examples = [
 HF_TOKEN = os.getenv("HF_TOKEN") or "hf_your_access_token_here"
 login(token=HF_TOKEN)
 
-# model name or path
-# MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1" # model name
-MODEL_NAME = "./models/mistral-7b-instruct" #downloaded model path
-# MODEL_NAME = "google/gemma-2b-it" #model name
+# MODEL_NAME = "./models/mistral-7b-instruct"
+# MODEL_NAME = "./models/gemma-2b-it"
+MODEL_NAME = "distilbert/distilgpt2"
 OUTPUT_DIR = "./my-swap-model"
 
 dataset = Dataset.from_list(examples)
+
+# tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+# model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+# 
+# def preprocess(example):
+#     inputs = tokenizer(example["input"], max_length=MAX_LENGTH, truncation=True, padding="max_length")
+#     outputs = tokenizer(example["output"], max_length=MAX_LENGTH, truncation=True, padding="max_length")
+#     inputs["labels"] = outputs["input_ids"]
+#     return inputs
+# 
+# tokenized_dataset = dataset.map(preprocess)
+# 
+# data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+# 
+# training_args = TrainingArguments(
+#     output_dir=OUTPUT_DIR,
+#     per_device_train_batch_size=BATCH_SIZE,
+#     num_train_epochs=EPOCHS,
+#     learning_rate=LEARNING_RATE,
+#     logging_dir=os.path.join(OUTPUT_DIR, "logs"),
+#     save_strategy="epoch",
+#     fp16=False,
+#     report_to="none"
+# )
+# 
+# trainer = Trainer(
+#     model=model,
+#     tokenizer=tokenizer,
+#     args=training_args,
+#     train_dataset=tokenized_dataset,
+#     data_collator=data_collator
+# )
+
+
+# not for seq2seq, for causal LM
+
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
+# def preprocess(example):
+#     text = example["input"] + "\n\n" + example["output"]
+#     tokens = tokenizer(text, padding="max_length", truncation=True, max_length=MAX_LENGTH)
+#     tokens["labels"] = tokens["input_ids"].copy()
+#     return tokens
+
 def preprocess(example):
-    text = example["input"] + "\n\n" + example["output"]
-    tokens = tokenizer(text, padding="max_length", truncation=True, max_length=MAX_LENGTH)
+    prompt = f"Input: {example['input']}\nOutput: {example['output']}"
+    tokens = tokenizer(prompt, padding="max_length", truncation=True, max_length=MAX_LENGTH)
     tokens["labels"] = tokens["input_ids"].copy()
     return tokens
 
@@ -90,13 +133,15 @@ print(f"Model saved at {OUTPUT_DIR}")
 
 
 ### ************* test model ************* ###
+# model = AutoModelForSeq2SeqLM.from_pretrained(OUTPUT_DIR)
+# tokenizer = AutoTokenizer.from_pretrained(OUTPUT_DIR)
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
 # Define a prompt for testing
-test_input = "Swap 150 DAI from Binance Smart Chain to Ethereum"
+test_input = "Input: Swap 150 DAI from Binance Smart Chain to Ethereum\nOutput:"
 
 # Tokenize the input
 inputs = tokenizer(test_input, return_tensors="pt", truncation=True, padding=True, max_length=MAX_LENGTH)
