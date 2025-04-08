@@ -1,0 +1,7 @@
+transformers>=4.35.0
+datasets
+safetensors
+accelerate
+peft
+bitsandbytes
+huggingface_hub
